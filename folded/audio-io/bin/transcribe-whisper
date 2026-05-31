@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -lt 1 ]; then
+  echo "usage: transcribe-whisper <audio-file>" >&2
+  exit 2
+fi
+
+input="$1"
+if [ ! -f "$input" ]; then
+  echo "file not found: $input" >&2
+  exit 2
+fi
+
+whisper_bin="${WHISPER_BIN:-whisper}"
+model="${PI_TELEGRAM_WHISPER_MODEL:-base}"
+language="${PI_TELEGRAM_WHISPER_LANGUAGE:-}"
+output_dir="$(mktemp -d)"
+cleanup() {
+  rm -rf "$output_dir"
+}
+trap cleanup EXIT
+
+base_name="$(basename "$input")"
+stem="${base_name%.*}"
+
+args=(
+  "$input"
+  --model "$model"
+  --task transcribe
+  --output_dir "$output_dir"
+  --output_format txt
+  --verbose False
+)
+
+if [ -n "$language" ]; then
+  args+=(--language "$language")
+fi
+
+"$whisper_bin" "${args[@]}" >/dev/null
+
+transcript_file="$output_dir/$stem.txt"
+if [ ! -f "$transcript_file" ]; then
+  echo "transcript not generated for: $input" >&2
+  exit 1
+fi
+
+python3 - "$transcript_file" <<'PY'
+import pathlib
+import re
+import sys
+
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+text = text.replace("\r", "")
+text = re.sub(r"[ \t]+", " ", text)
+text = re.sub(r"\n{3,}", "\n\n", text).strip()
+if text:
+    print(text)
+PY

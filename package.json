@@ -1,26 +1,68 @@
 {
-  "name": "pi-telegram",
-  "version": "0.1.0",
-  "private": false,
-  "description": "Telegram DM bridge extension for pi",
+  "name": "@local/pi-telegram-sandbox",
+  "version": "0.13.2-sandbox.1",
+  "private": true,
+  "description": "Local vendored sandbox fork of llblab/pi-telegram with folded local telegram-* capabilities (audio-io, new-session, image-io, reboot-bridge). XO-scoped during sandbox phase.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "telegram",
+    "bot",
+    "extension"
+  ],
   "type": "module",
-  "keywords": ["pi-package", "pi", "telegram", "bot", "extension"],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/badlogic/pi-telegram.git"
+    "url": "https://github.com/llblab/pi-telegram.git"
   },
-  "homepage": "https://github.com/badlogic/pi-telegram",
+  "homepage": "https://github.com/llblab/pi-telegram",
   "bugs": {
-    "url": "https://github.com/badlogic/pi-telegram/issues"
+    "url": "https://github.com/llblab/pi-telegram/issues"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "audit": "npm audit",
+    "pack:check": "npm pack --dry-run",
+    "validate": "npm run typecheck && npm test && npm run audit && npm run pack:check"
+  },
+  "files": [
+    "index.ts",
+    "api/",
+    "lib/",
+    "README.md",
+    "AGENTS.md",
+    "BACKLOG.md",
+    "CHANGELOG.md",
+    "docs/",
+    "screenshot.png"
+  ],
+  "exports": {
+    ".": "./index.ts",
+    "./inbound": "./api/inbound.ts",
+    "./outbound": "./api/outbound.ts",
+    "./updates": "./api/updates.ts",
+    "./sections": "./api/sections.ts",
+    "./voice": "./api/voice.ts",
+    "./keyboard": "./api/keyboard.ts"
   },
   "pi": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
   },
   "peerDependencies": {
-    "@mariozechner/pi-ai": "*",
-    "@mariozechner/pi-agent-core": "*",
-    "@mariozechner/pi-coding-agent": "*",
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
     "@sinclair/typebox": "*"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "typescript": "latest"
   }
 }

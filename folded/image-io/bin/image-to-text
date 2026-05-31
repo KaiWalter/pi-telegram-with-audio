@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+FILE_PATH="${1:-}"
+if [[ -z "${FILE_PATH}" ]]; then
+  echo "image-to-text: missing file argument" >&2
+  exit 2
+fi
+
+if [[ ! -f "${FILE_PATH}" ]]; then
+  echo "image-to-text: file not found: ${FILE_PATH}" >&2
+  exit 2
+fi
+
+MIME_TYPE="$(file --brief --mime-type "${FILE_PATH}" 2>/dev/null || true)"
+
+# Best effort OCR: use tesseract when available.
+if command -v tesseract >/dev/null 2>&1; then
+  OCR_TEXT="$(tesseract "${FILE_PATH}" stdout 2>/dev/null || true)"
+  OCR_TEXT="$(printf '%s' "${OCR_TEXT}" | sed '/^[[:space:]]*$/d' || true)"
+  if [[ -n "${OCR_TEXT}" ]]; then
+    printf 'Image OCR text (%s):\n%s\n' "${MIME_TYPE:-unknown}" "${OCR_TEXT}"
+    exit 0
+  fi
+fi
+
+# Deterministic fallback when OCR backend is not present.
+uv run python3 - "${FILE_PATH}" "${MIME_TYPE}" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+img = Path(sys.argv[1]).resolve()
+mime = (sys.argv[2] or "unknown").strip()
+size = img.stat().st_size if img.exists() else 0
+print(f"Image attached: {img.name}")
+print(f"Path: {img}")
+print(f"Mime: {mime}")
+print(f"Size bytes: {size}")
+print("OCR backend missing on host (tesseract not installed).")
+print("Use read(path=...) on this image so the model can inspect visual content directly.")
+PY
