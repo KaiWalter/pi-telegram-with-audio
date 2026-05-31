@@ -202,7 +202,12 @@ test("Message activity hooks re-arm typing for active Telegram turns", async () 
     { message: {} as never },
     createLifecycleContext(),
   );
-  assert.deepEqual(events, ["typing:start", "message:start", "message:update"]);
+  assert.deepEqual(events, [
+    "typing:start",
+    "message:start",
+    "typing:start",
+    "message:update",
+  ]);
 });
 
 test("Lifecycle helpers register pi hooks and delegate to handlers", async () => {

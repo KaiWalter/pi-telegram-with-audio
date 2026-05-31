@@ -1,5 +1,5 @@
 {
-  "name": "@local/pi-telegram-sandbox",
+  "name": "@llblab/pi-telegram",
   "version": "0.13.2-sandbox.1",
   "private": true,
   "description": "Local vendored sandbox fork of llblab/pi-telegram with folded local telegram-* capabilities (audio-io, new-session, image-io, reboot-bridge). XO-scoped during sandbox phase.",

@@ -224,7 +224,16 @@ function createRuntimePiHarness(options: RuntimePiHarnessOptions = {}) {
   const commands = new Map<string, RuntimeHarnessCommand>();
   const pi = {
     on: (event: string, handler: RuntimeHarnessHandler) => {
-      handlers.set(event, handler);
+      const previous = handlers.get(event);
+      if (!previous) {
+        handlers.set(event, handler);
+        return;
+      }
+      handlers.set(event, async (payload: unknown, ctx: unknown) => {
+        const first = await previous(payload, ctx);
+        const second = await handler(first ?? payload, ctx);
+        return second ?? first;
+      });
     },
     registerCommand: (name: string, definition: RuntimeHarnessCommand) => {
       commands.set(name, definition);

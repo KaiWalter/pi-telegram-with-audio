@@ -485,11 +485,17 @@ export default function (pi: Pi.ExtensionAPI) {
   // ---------------------------------------------------------------------------
   // Folded local telegram-* extensions activation
   // ---------------------------------------------------------------------------
+  const appendEntry = (
+    pi as unknown as {
+      appendEntry?: Function;
+    }
+  )["appendEntry"];
+
   // Audio I/O: voice transcription + telegram_voice tool wiring.
   try {
     activateFoldedAudioIo(pi);
   } catch (err) {
-    pi.appendEntry?.("pi_telegram_sandbox", {
+    appendEntry?.("pi_telegram_sandbox", {
       status: "folded_audio_io_activation_failed",
       error: err instanceof Error ? err.message : String(err),
     });
@@ -499,7 +505,7 @@ export default function (pi: Pi.ExtensionAPI) {
   try {
     activateFoldedNewSession(pi);
   } catch (err) {
-    pi.appendEntry?.("pi_telegram_sandbox", {
+    appendEntry?.("pi_telegram_sandbox", {
       status: "folded_new_session_activation_failed",
       error: err instanceof Error ? err.message : String(err),
     });
@@ -510,7 +516,7 @@ export default function (pi: Pi.ExtensionAPI) {
   try {
     activateFoldedRebootBridge(pi);
   } catch (err) {
-    pi.appendEntry?.("pi_telegram_sandbox", {
+    appendEntry?.("pi_telegram_sandbox", {
       status: "folded_reboot_bridge_activation_failed",
       error: err instanceof Error ? err.message : String(err),
     });
