@@ -20,7 +20,8 @@ type ExternalHandlerRegistry = {
 };
 
 const EXTERNAL_REGISTRY_KEY = "__piTelegramExternalHandlerRegistry__";
-const NEW_SESSION_COMMANDS = new Set(["new"]);
+const NATIVE_PI_COMMANDS = new Set(["new", "reload"] as const);
+type NativePiCommand = "new" | "reload";
 
 function getExternalRegistry(): ExternalHandlerRegistry | undefined {
   const raw = (globalThis as Record<string, unknown>)[EXTERNAL_REGISTRY_KEY];
@@ -77,21 +78,27 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
 
-async function triggerNativeNewSession(pi: ExtensionAPI): Promise<boolean> {
+async function triggerNativePiCommand(
+  pi: ExtensionAPI,
+  command: NativePiCommand,
+): Promise<boolean> {
   const pane = process.env.TMUX_PANE;
+  const slashCommand = `/${command}`;
   if (pane) {
     try {
-      const script = `sleep 0.35; tmux send-keys -t ${shellQuote(pane)} /new Enter`;
+      const script = `sleep 0.35; tmux send-keys -t ${shellQuote(pane)} ${slashCommand} Enter`;
       await pi.exec("tmux", ["run-shell", "-b", script]);
       pi.appendEntry("telegram_new_bridge_debug", {
         path: "tmux-run-shell",
         pane,
+        command,
       });
       return true;
     } catch (error) {
       pi.appendEntry("telegram_new_bridge_debug", {
         path: "tmux-run-shell-error",
         pane,
+        command,
         error: error instanceof Error ? error.message : String(error),
       });
       // fall through to fallback
@@ -99,14 +106,16 @@ async function triggerNativeNewSession(pi: ExtensionAPI): Promise<boolean> {
   }
 
   try {
-    pi.sendUserMessage("/new");
+    pi.sendUserMessage(slashCommand);
     pi.appendEntry("telegram_new_bridge_debug", {
       path: "sendUserMessage-fallback",
+      command,
     });
     return true;
   } catch (error) {
     pi.appendEntry("telegram_new_bridge_debug", {
       path: "sendUserMessage-error",
+      command,
       error: error instanceof Error ? error.message : String(error),
     });
     return false;
@@ -125,8 +134,8 @@ export default function telegramNewSessionBridgeExtension(pi: ExtensionAPI) {
 
     off = registry.add(async (update) => {
       const message = (update as TelegramUpdate).message;
-      const command = getMessageCommand(message);
-      if (!command || !NEW_SESSION_COMMANDS.has(command)) return "pass";
+      const command = getMessageCommand(message) as NativePiCommand | undefined;
+      if (!command || !NATIVE_PI_COMMANDS.has(command)) return "pass";
 
       pi.appendEntry("telegram_new_bridge_debug", {
         path: "intercept",
@@ -143,7 +152,7 @@ export default function telegramNewSessionBridgeExtension(pi: ExtensionAPI) {
         return "pass";
       }
 
-      await triggerNativeNewSession(pi);
+      await triggerNativePiCommand(pi, command);
       return "consume";
     });
 
@@ -154,8 +163,10 @@ export default function telegramNewSessionBridgeExtension(pi: ExtensionAPI) {
   };
 
   pi.on("input", async (event) => {
-    const command = parseLeadingSlashCommand(event.text ?? "");
-    if (!command || !NEW_SESSION_COMMANDS.has(command)) {
+    const command = parseLeadingSlashCommand(
+      event.text ?? "",
+    ) as NativePiCommand | undefined;
+    if (!command || !NATIVE_PI_COMMANDS.has(command)) {
       return { action: "continue" };
     }
 
@@ -170,7 +181,7 @@ export default function telegramNewSessionBridgeExtension(pi: ExtensionAPI) {
         command,
         source: event.source,
       });
-      await triggerNativeNewSession(pi);
+      await triggerNativePiCommand(pi, command);
       return { action: "handled" };
     } finally {
       const releaseTimer = setTimeout(() => {

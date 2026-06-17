@@ -1,10 +1,10 @@
 # telegram-new-session-bridge
 
-Shared Pi extension that hooks the `pi-telegram` external update registry and consumes Telegram `/new` commands.
+Shared Pi extension that hooks the `pi-telegram` external update registry and consumes Telegram `/new` and `/reload` commands.
 
 Execution strategy:
-- Primary: intercept Telegram `/new` on pi input flow (`event.source === "extension"`) and consume it before normal prompt processing.
-- Preferred reset path: send native `/new` keystrokes into the current tmux pane (`$TMUX_PANE`) so Pi executes a real session reset.
+- Primary: intercept Telegram `/new` and `/reload` on pi input flow and consume them before normal prompt processing.
+- Preferred native path: send `/new` or `/reload` keystrokes into the current tmux pane (`$TMUX_PANE`) so Pi executes real native command handling.
 - Secondary path: external-handler registry interception (`__piTelegramExternalHandlerRegistry__`) when available.
 - Fallback: `pi.sendUserMessage("/new")` only if tmux injection is unavailable.
 
