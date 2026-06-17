@@ -42,6 +42,7 @@ import * as TextGroups from "./lib/text-groups.ts";
 import * as TimeInjection from "./lib/time-injection.ts";
 import * as Updates from "./lib/updates.ts";
 import * as Voice from "./lib/voice.ts";
+import { bindTelegramAskUserQuestionBridge } from "./lib/ask-user-question-bridge.ts";
 
 // Folded local telegram-* extensions (vendored as part of sandbox consolidation)
 import activateFoldedAudioIo from "./folded/audio-io/index.ts";
@@ -402,6 +403,13 @@ export default function (pi: Pi.ExtensionAPI) {
     updateStatus,
     recordRuntimeEvent,
   });
+  bindTelegramAskUserQuestionBridge({
+    hasActiveTelegramTurn: activeTurnRuntime.has,
+    getActiveTurnChatId: activeTurnRuntime.getChatId,
+    registerTelegramUpdateHandler: Updates.registerTelegramUpdateHandler,
+    sendMessage,
+    recordRuntimeEvent,
+  });
   const queueSessionLifecycle = Queue.createTelegramSessionLifecycleRuntime({
     getCurrentModel: getContextModel,
     loadConfig: configStore.load,
@@ -521,4 +529,5 @@ export default function (pi: Pi.ExtensionAPI) {
       error: err instanceof Error ? err.message : String(err),
     });
   }
+
 }
