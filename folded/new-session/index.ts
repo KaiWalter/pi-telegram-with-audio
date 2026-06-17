@@ -36,11 +36,30 @@ function getExternalRegistry(): ExternalHandlerRegistry | undefined {
   return candidate as ExternalHandlerRegistry;
 }
 
+function stripLeadingEnvelopeTags(text: string): string {
+  // Handles transport prefixes like: [telegram] /new  or  [telegram]\n\n/new
+  return text.trim().replace(/^(?:\[[^\]\n]+\]\s*)+/, "").trim();
+}
+
 function parseLeadingSlashCommand(text: string): string | undefined {
   const trimmed = text.trim();
-  const match = trimmed.match(/^\/([a-zA-Z0-9_]+)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/);
-  const command = match?.[1]?.toLowerCase();
-  return command || undefined;
+
+  // Fast path: plain /command
+  const direct = trimmed.match(/^\/([a-zA-Z0-9_]+)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/);
+  if (direct?.[1]) return direct[1].toLowerCase();
+
+  // Envelope path: [telegram] /command or [telegram]\n\n/command
+  const withoutEnvelope = stripLeadingEnvelopeTags(trimmed);
+  const envelopeDirect = withoutEnvelope.match(
+    /^\/([a-zA-Z0-9_]+)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/,
+  );
+  if (envelopeDirect?.[1]) return envelopeDirect[1].toLowerCase();
+
+  // Conservative line scan for slash-commands at line start after optional envelope tags.
+  const lineStart = withoutEnvelope.match(
+    /(?:^|\n)\s*\/([a-zA-Z0-9_]+)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/,
+  );
+  return lineStart?.[1]?.toLowerCase() || undefined;
 }
 
 function getMessageCommand(message: TelegramMessage | undefined): string | undefined {
@@ -135,7 +154,6 @@ export default function telegramNewSessionBridgeExtension(pi: ExtensionAPI) {
   };
 
   pi.on("input", async (event) => {
-    if (event.source !== "extension") return { action: "continue" };
     const command = parseLeadingSlashCommand(event.text ?? "");
     if (!command || !NEW_SESSION_COMMANDS.has(command)) {
       return { action: "continue" };
