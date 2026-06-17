@@ -29,6 +29,7 @@ export interface TelegramPromptTemplateMenuCommand {
 
 export const TELEGRAM_COMMAND_EMOJI = {
   start: "🟢",
+  new: "🆕",
   status: "📊",
   model: "🤖",
   thinking: "🧠",
@@ -68,6 +69,13 @@ export const TELEGRAM_BUILTIN_BOT_COMMANDS: readonly TelegramBotCommandDefinitio
       description: formatTelegramBotCommandDescription(
         "start",
         "Open menu / Pair bridge",
+      ),
+    },
+    {
+      command: "new",
+      description: formatTelegramBotCommandDescription(
+        "new",
+        "Start fresh π session",
       ),
     },
     {
@@ -627,6 +635,7 @@ export const TELEGRAM_APP_MENU_INTRO_HTML = [
   "<b>π Telegram</b>",
   "",
   `${formatTelegramCommandEmojiPrefix("start")}/start — Open menu / Pair bridge`,
+  `${formatTelegramCommandEmojiPrefix("new")}/new — Start fresh π session`,
   `${formatTelegramCommandEmojiPrefix("compact")}/compact — Compact current session`,
   `${formatTelegramCommandEmojiPrefix("next")}/next — Force next turn`,
   `${formatTelegramCommandEmojiPrefix("continue")}/continue — Queue continue prompt`,

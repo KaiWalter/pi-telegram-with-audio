@@ -89,6 +89,7 @@ test("Command helpers expose Telegram bot command definitions", () => {
       command: "start",
       description: "🟢 Open menu / Pair bridge",
     },
+    { command: "new", description: "🆕 Start fresh π session" },
     { command: "compact", description: "🗜 Compact current session" },
     {
       command: "next",
