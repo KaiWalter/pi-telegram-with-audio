@@ -48,6 +48,7 @@ import { bindTelegramAskUserQuestionBridge } from "./lib/ask-user-question-bridg
 import activateFoldedAudioIo from "./folded/audio-io/index.ts";
 import activateFoldedNewSession from "./folded/new-session/index.ts";
 import activateFoldedRebootBridge from "./folded/reboot-bridge/index.ts";
+import activateFoldedModelFidelity from "./folded/model-fidelity/index.ts";
 // telegram-image-io is bin-only (no extension module); its handler scripts live
 // under folded/image-io/bin and are referenced via the lane's telegram.json
 // inbound handler configuration.
@@ -526,6 +527,16 @@ export default function (pi: Pi.ExtensionAPI) {
   } catch (err) {
     appendEntry?.("pi_telegram_sandbox", {
       status: "folded_reboot_bridge_activation_failed",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // Model-fidelity bridge: /power + /eco + /model two-tier model switch.
+  try {
+    activateFoldedModelFidelity(pi);
+  } catch (err) {
+    appendEntry?.("pi_telegram_sandbox", {
+      status: "folded_model_fidelity_activation_failed",
       error: err instanceof Error ? err.message : String(err),
     });
   }
