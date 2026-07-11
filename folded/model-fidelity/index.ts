@@ -219,12 +219,18 @@ export default function telegramModelFidelityBridgeExtension(pi: ExtensionAPI) {
     const lane = laneName(ctx);
     const tiers = loadTierConfig(lane);
 
-    // IMPORTANT: do not short-circuit with action=handled + direct Bot API replies here.
-    // Let pi process a transformed /model command so normal turn lifecycle completes
-    // and Telegram bridge inflight/typing state is cleared deterministically.
+    // IMPORTANT: do not short-circuit with action=handled + out-of-band Bot API replies.
+    // We still switch via pi.setModel, but we return action=transform with a normal text
+    // response so Telegram bridge lifecycle (agent_end / inflight clear) stays consistent.
     if (intent.kind === "status") {
-      pi.appendEntry("telegram_model_fidelity", { status: "reported-via-transform", lane });
-      return { action: "transform" as const, text: "/model" };
+      const current = ctx.model?.id ?? ctx.model?.name ?? "unknown";
+      const parts = [
+        `Current model: ${current}`,
+        tiers.power ? `Power (/power): ${tiers.power}` : "Power: not configured",
+        tiers.eco ? `Eco (/eco): ${tiers.eco}` : "Eco: not configured",
+      ];
+      pi.appendEntry("telegram_model_fidelity", { status: "reported", lane, current });
+      return { action: "transform" as const, text: parts.join("\n") };
     }
 
     const tier = intent.tier;
@@ -235,18 +241,28 @@ export default function telegramModelFidelityBridgeExtension(pi: ExtensionAPI) {
     }
 
     const parsed = parseModelRef(ref);
-    if (!parsed) {
-      pi.appendEntry("telegram_model_fidelity", { status: "invalid_ref", lane, tier, ref });
-      return { action: "transform" as const, text: `Invalid ${tier} model reference: ${ref}` };
+    const model = parsed && ctx.modelRegistry?.find
+      ? ctx.modelRegistry.find(parsed.provider, parsed.modelId)
+      : undefined;
+    if (!model) {
+      pi.appendEntry("telegram_model_fidelity", { status: "model_not_found", lane, tier, ref });
+      return { action: "transform" as const, text: `Could not find ${tier} model "${ref}" in the model registry.` };
     }
 
-    pi.appendEntry("telegram_model_fidelity", {
-      status: "switch-command-dispatched",
-      lane,
-      tier,
-      ref,
-      command: `/model ${ref}`,
-    });
-    return { action: "transform" as const, text: `/model ${ref}` };
+    try {
+      const ok = await pi.setModel(model as never);
+      const label = model.name ?? model.id ?? ref;
+      if (ok === false) {
+        pi.appendEntry("telegram_model_fidelity", { status: "no_api_key", lane, tier, ref });
+        return { action: "transform" as const, text: `Could not switch to ${tier} model ${label} (no API key available).` };
+      }
+      pi.appendEntry("telegram_model_fidelity", { status: "switched", lane, tier, ref, label });
+      const tierName = tier === "power" ? "Power" : "Eco";
+      return { action: "transform" as const, text: `${tierName} mode on. Model: ${label}` };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      pi.appendEntry("telegram_model_fidelity", { status: "switch_failed", lane, tier, ref, error: msg });
+      return { action: "transform" as const, text: `Failed to switch to ${tier} model: ${msg}` };
+    }
   });
 }
