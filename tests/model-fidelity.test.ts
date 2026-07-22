@@ -57,7 +57,7 @@ function makeCtx() {
 test("switches to power via slash command", async () => {
   const pi = makePi();
   const res = await pi.handler({ text: "[telegram] /power", source: "extension" }, makeCtx());
-  assert.equal(res?.action, "handled");
+  assert.equal(res?.action, "transform");
   assert.equal(pi.setModelCalls.length, 1);
   assert.deepEqual(pi.setModelCalls[0], {
     id: "azure-anthropic-messages/opus-power",
@@ -69,7 +69,7 @@ test("switches to power via slash command", async () => {
 test("switches to eco via voice phrase", async () => {
   const pi = makePi();
   const res = await pi.handler({ text: "[telegram] eco mode", source: "extension" }, makeCtx());
-  assert.equal(res?.action, "handled");
+  assert.equal(res?.action, "transform");
   assert.equal((pi.setModelCalls[0] as { name: string }).name, "mini-eco");
 });
 
@@ -86,7 +86,7 @@ test("high fidelity / low fidelity map to power / eco", async () => {
 test("/model status does not switch", async () => {
   const pi = makePi();
   const res = await pi.handler({ text: "[telegram] /model", source: "extension" }, makeCtx());
-  assert.equal(res?.action, "handled");
+  assert.equal(res?.action, "transform");
   assert.equal(pi.setModelCalls.length, 0);
 });
 
