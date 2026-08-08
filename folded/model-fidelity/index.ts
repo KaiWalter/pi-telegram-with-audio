@@ -178,6 +178,29 @@ function agentDir(): string {
   return process.env.PI_CODING_AGENT_DIR || process.cwd();
 }
 
+function laneLookupCandidates(lane: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (value: string) => {
+    const v = value.trim();
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    out.push(v);
+  };
+  push(lane);
+
+  const suffixes = ["-herdr-telegram", "-herdr-dapr", "-telegram", "-dapr", "-bus"];
+  let current = lane;
+  for (const suffix of suffixes) {
+    if (current.endsWith(suffix)) {
+      current = current.slice(0, -suffix.length);
+      push(current);
+    }
+  }
+
+  return out;
+}
+
 function loadTierConfig(lane: string): { power?: string; eco?: string } {
   const envPower = process.env.PI_TELEGRAM_MODEL_POWER;
   const envEco = process.env.PI_TELEGRAM_MODEL_ECO;
@@ -186,11 +209,13 @@ function loadTierConfig(lane: string): { power?: string; eco?: string } {
   try {
     const cfgPath = path.join(os.homedir(), ".pi", "shared", "data", "model-fidelity", "tiers.json");
     const raw = JSON.parse(fs.readFileSync(cfgPath, "utf-8")) as Record<string, unknown>;
-    const laneCfg = raw[lane];
-    if (laneCfg && typeof laneCfg === "object") {
+    for (const key of laneLookupCandidates(lane)) {
+      const laneCfg = raw[key];
+      if (!laneCfg || typeof laneCfg !== "object") continue;
       const l = laneCfg as Record<string, unknown>;
-      if (typeof l.power === "string") filePower = l.power;
-      if (typeof l.eco === "string") fileEco = l.eco;
+      if (!filePower && typeof l.power === "string") filePower = l.power;
+      if (!fileEco && typeof l.eco === "string") fileEco = l.eco;
+      if (filePower && fileEco) break;
     }
   } catch {
     // ignore; env may still provide values

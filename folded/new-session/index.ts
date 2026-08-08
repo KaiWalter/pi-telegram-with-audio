@@ -74,29 +74,36 @@ function isLikelyBotMessage(message: TelegramMessage | undefined): boolean {
   return message?.from?.is_bot === true;
 }
 
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'"'"'`)}'`;
+async function currentHerdrPaneId(pi: ExtensionAPI): Promise<string | undefined> {
+  try {
+    const result = await pi.exec("herdr", ["pane", "current"]);
+    const payload = JSON.parse(result.stdout ?? "{}");
+    const paneId = String(payload?.result?.pane?.pane_id ?? "").trim();
+    return paneId || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function triggerNativePiCommand(
   pi: ExtensionAPI,
   command: NativePiCommand,
 ): Promise<boolean> {
-  const pane = process.env.TMUX_PANE;
+  const pane = await currentHerdrPaneId(pi);
   const slashCommand = `/${command}`;
   if (pane) {
     try {
-      const script = `sleep 0.35; tmux send-keys -t ${shellQuote(pane)} ${slashCommand} Enter`;
-      await pi.exec("tmux", ["run-shell", "-b", script]);
+      await pi.exec("herdr", ["pane", "send-text", pane, slashCommand]);
+      await pi.exec("herdr", ["pane", "send-keys", pane, "Enter"]);
       pi.appendEntry("telegram_new_bridge_debug", {
-        path: "tmux-run-shell",
+        path: "herdr-pane-send",
         pane,
         command,
       });
       return true;
     } catch (error) {
       pi.appendEntry("telegram_new_bridge_debug", {
-        path: "tmux-run-shell-error",
+        path: "herdr-pane-send-error",
         pane,
         command,
         error: error instanceof Error ? error.message : String(error),
