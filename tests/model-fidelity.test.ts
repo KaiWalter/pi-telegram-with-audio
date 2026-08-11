@@ -1,6 +1,6 @@
 /**
  * Tests for the folded model-fidelity bridge
- * Guards /power + /eco + /model intent parsing and per-lane model switching
+ * Guards /power + /balanced + /eco + /model intent parsing and per-lane model switching
  */
 import assert from "node:assert/strict";
 import os from "node:os";
@@ -15,6 +15,7 @@ import activateFoldedModelFidelity from "../folded/model-fidelity/index.ts";
 const LANE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "mf-lane-")); // no telegram.json -> sendTelegram no-ops
 process.env.PI_CODING_AGENT_DIR = LANE_DIR;
 process.env.PI_TELEGRAM_MODEL_POWER = "azure-anthropic-messages/opus-power";
+process.env.PI_TELEGRAM_MODEL_BALANCED = "azure-openai-responses/terra-balanced";
 process.env.PI_TELEGRAM_MODEL_ECO = "azure-openai-responses/mini-eco";
 
 type InputHandler = (
@@ -66,6 +67,13 @@ test("switches to power via slash command", async () => {
   });
 });
 
+test("switches to balanced via slash command", async () => {
+  const pi = makePi();
+  const res = await pi.handler({ text: "[telegram] /balanced", source: "extension" }, makeCtx());
+  assert.equal(res?.action, "transform");
+  assert.equal((pi.setModelCalls[0] as { name: string }).name, "terra-balanced");
+});
+
 test("switches to eco via voice phrase", async () => {
   const pi = makePi();
   const res = await pi.handler({ text: "[telegram] eco mode", source: "extension" }, makeCtx());
@@ -73,19 +81,28 @@ test("switches to eco via voice phrase", async () => {
   assert.equal((pi.setModelCalls[0] as { name: string }).name, "mini-eco");
 });
 
-test("high fidelity / low fidelity map to power / eco", async () => {
+test("ignores legacy hifi/lofi aliases", async () => {
   const p1 = makePi();
-  await p1.handler({ text: "high fidelity", source: "extension" }, makeCtx());
-  assert.equal((p1.setModelCalls[0] as { name: string }).name, "opus-power");
+  const r1 = await p1.handler({ text: "hifi", source: "extension" }, makeCtx());
+  assert.equal(r1?.action, "continue");
+  assert.equal(p1.setModelCalls.length, 0);
 
   const p2 = makePi();
-  await p2.handler({ text: "low fidelity", source: "extension" }, makeCtx());
-  assert.equal((p2.setModelCalls[0] as { name: string }).name, "mini-eco");
+  const r2 = await p2.handler({ text: "lofi", source: "extension" }, makeCtx());
+  assert.equal(r2?.action, "continue");
+  assert.equal(p2.setModelCalls.length, 0);
 });
 
-test("/model status does not switch", async () => {
+test("/model is left to core model menu routing", async () => {
   const pi = makePi();
   const res = await pi.handler({ text: "[telegram] /model", source: "extension" }, makeCtx());
+  assert.equal(res?.action, "continue");
+  assert.equal(pi.setModelCalls.length, 0);
+});
+
+test("which model phrase reports status", async () => {
+  const pi = makePi();
+  const res = await pi.handler({ text: "[telegram] which model", source: "extension" }, makeCtx());
   assert.equal(res?.action, "transform");
   assert.equal(pi.setModelCalls.length, 0);
 });

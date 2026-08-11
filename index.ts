@@ -531,7 +531,7 @@ export default function (pi: Pi.ExtensionAPI) {
     });
   }
 
-  // Model-fidelity bridge: /power + /eco + /model two-tier model switch.
+  // Model-fidelity bridge: /power + /balanced + /eco + /model three-tier model switch.
   try {
     activateFoldedModelFidelity(pi);
   } catch (err) {

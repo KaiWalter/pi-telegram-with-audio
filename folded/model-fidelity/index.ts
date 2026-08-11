@@ -1,13 +1,15 @@
 /**
  * Folded model-fidelity bridge.
  *
- * Adds a simple two-tier model switch to the Telegram lane:
- *   /power  (voice: "power mode" / "high fidelity")  -> the lane's Power model
- *   /eco    (voice: "eco mode"   / "low fidelity")    -> the lane's Eco model
- *   /model  (voice: "which model")                    -> report current + tiers
+ * Adds a simple three-tier model switch to the Telegram lane:
+ *   /power     (voice: "power mode")     -> the lane's Power model
+ *   /balanced  (voice: "balanced mode")  -> the lane's Balanced model
+ *   /eco       (voice: "eco mode")       -> the lane's Eco model
+ *   /model     -> handled by pi-telegram core model menu
+ *   voice/text "which model"              -> report current + tiers
  *
  * Per-lane tier mapping is resolved (in order):
- *   1. env PI_TELEGRAM_MODEL_POWER / PI_TELEGRAM_MODEL_ECO
+ *   1. env PI_TELEGRAM_MODEL_POWER / PI_TELEGRAM_MODEL_BALANCED / PI_TELEGRAM_MODEL_ECO
  *   2. ~/.pi/shared/data/model-fidelity/tiers.json keyed by PI_CODING_AGENT_DIR basename
  * Values are "provider/modelId" resolved via ctx.modelRegistry.
  *
@@ -36,7 +38,7 @@ interface CtxLike {
   modelRegistry?: ModelRegistryLike;
 }
 
-type Tier = "power" | "eco";
+type Tier = "power" | "balanced" | "eco";
 
 const TELEGRAM_RE = /^\[telegram(?:\|[^\]]+)?\]/im;
 const TRANSCRIPT_RE = /<transcript>\s*([\s\S]*?)\s*<\/transcript>/i;
@@ -51,13 +53,17 @@ const POWER_PHRASES = new Set([
   "power",
   "power mode",
   "power model",
-  "high fidelity",
-  "high fidelity mode",
-  "hifi",
-  "hi fi",
   "switch to power",
   "switch to power mode",
   "go power",
+]);
+const BALANCED_PHRASES = new Set([
+  "balanced",
+  "balanced mode",
+  "balanced model",
+  "switch to balanced",
+  "switch to balanced mode",
+  "go balanced",
 ]);
 const ECO_PHRASES = new Set([
   "eco",
@@ -65,10 +71,6 @@ const ECO_PHRASES = new Set([
   "eco model",
   "economy",
   "economy mode",
-  "low fidelity",
-  "low fidelity mode",
-  "lofi",
-  "lo fi",
   "switch to eco",
   "switch to eco mode",
   "go eco",
@@ -158,11 +160,13 @@ function detectIntent(userText: string): Intent {
   // Slash commands (leading, possibly after envelope strip already done).
   const slash = parseSlashCommand(userText.trim()) ?? parseSlashCommand(cleaned);
   if (slash === "power") return { kind: "set", tier: "power" };
+  if (slash === "balanced") return { kind: "set", tier: "balanced" };
   if (slash === "eco") return { kind: "set", tier: "eco" };
-  if (slash === "model") return { kind: "status" };
+  if (slash === "model") return undefined;
 
   // Whole-message phrase match only.
   if (POWER_PHRASES.has(cleaned)) return { kind: "set", tier: "power" };
+  if (BALANCED_PHRASES.has(cleaned)) return { kind: "set", tier: "balanced" };
   if (ECO_PHRASES.has(cleaned)) return { kind: "set", tier: "eco" };
   if (STATUS_PHRASES.has(cleaned)) return { kind: "status" };
   return undefined;
@@ -201,10 +205,12 @@ function laneLookupCandidates(lane: string): string[] {
   return out;
 }
 
-function loadTierConfig(lane: string): { power?: string; eco?: string } {
+function loadTierConfig(lane: string): { power?: string; balanced?: string; eco?: string } {
   const envPower = process.env.PI_TELEGRAM_MODEL_POWER;
+  const envBalanced = process.env.PI_TELEGRAM_MODEL_BALANCED;
   const envEco = process.env.PI_TELEGRAM_MODEL_ECO;
   let filePower: string | undefined;
+  let fileBalanced: string | undefined;
   let fileEco: string | undefined;
   try {
     const cfgPath = path.join(os.homedir(), ".pi", "shared", "data", "model-fidelity", "tiers.json");
@@ -214,13 +220,18 @@ function loadTierConfig(lane: string): { power?: string; eco?: string } {
       if (!laneCfg || typeof laneCfg !== "object") continue;
       const l = laneCfg as Record<string, unknown>;
       if (!filePower && typeof l.power === "string") filePower = l.power;
+      if (!fileBalanced && typeof l.balanced === "string") fileBalanced = l.balanced;
       if (!fileEco && typeof l.eco === "string") fileEco = l.eco;
-      if (filePower && fileEco) break;
+      if (filePower && fileBalanced && fileEco) break;
     }
   } catch {
     // ignore; env may still provide values
   }
-  return { power: envPower || filePower, eco: envEco || fileEco };
+  return {
+    power: envPower || filePower,
+    balanced: envBalanced || fileBalanced,
+    eco: envEco || fileEco,
+  };
 }
 
 function parseModelRef(ref: string): { provider: string; modelId: string } | undefined {
@@ -252,6 +263,7 @@ export default function telegramModelFidelityBridgeExtension(pi: ExtensionAPI) {
       const parts = [
         `Current model: ${current}`,
         tiers.power ? `Power (/power): ${tiers.power}` : "Power: not configured",
+        tiers.balanced ? `Balanced (/balanced): ${tiers.balanced}` : "Balanced: not configured",
         tiers.eco ? `Eco (/eco): ${tiers.eco}` : "Eco: not configured",
       ];
       pi.appendEntry("telegram_model_fidelity", { status: "reported", lane, current });
@@ -259,7 +271,7 @@ export default function telegramModelFidelityBridgeExtension(pi: ExtensionAPI) {
     }
 
     const tier = intent.tier;
-    const ref = tier === "power" ? tiers.power : tiers.eco;
+    const ref = tier === "power" ? tiers.power : tier === "balanced" ? tiers.balanced : tiers.eco;
     if (!ref) {
       pi.appendEntry("telegram_model_fidelity", { status: "tier_not_configured", lane, tier });
       return { action: "transform" as const, text: `No ${tier} model configured for this lane (${lane}).` };
@@ -282,7 +294,7 @@ export default function telegramModelFidelityBridgeExtension(pi: ExtensionAPI) {
         return { action: "transform" as const, text: `Could not switch to ${tier} model ${label} (no API key available).` };
       }
       pi.appendEntry("telegram_model_fidelity", { status: "switched", lane, tier, ref, label });
-      const tierName = tier === "power" ? "Power" : "Eco";
+      const tierName = tier === "power" ? "Power" : tier === "balanced" ? "Balanced" : "Eco";
       return { action: "transform" as const, text: `${tierName} mode on. Model: ${label}` };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

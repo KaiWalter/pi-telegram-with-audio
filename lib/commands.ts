@@ -34,6 +34,7 @@ export const TELEGRAM_COMMAND_EMOJI = {
   status: "📊",
   model: "🤖",
   power: "⚡",
+  balanced: "⚖️",
   eco: "🌱",
   thinking: "🧠",
   compact: "🗜",
@@ -97,17 +98,18 @@ export const TELEGRAM_BUILTIN_BOT_COMMANDS: readonly TelegramBotCommandDefinitio
     },
     {
       command: "power",
+      description: formatTelegramBotCommandDescription("power", "Power model"),
+    },
+    {
+      command: "balanced",
       description: formatTelegramBotCommandDescription(
-        "power",
-        "Power model (high fidelity)",
+        "balanced",
+        "Balanced model",
       ),
     },
     {
       command: "eco",
-      description: formatTelegramBotCommandDescription(
-        "eco",
-        "Eco model (low fidelity)",
-      ),
+      description: formatTelegramBotCommandDescription("eco", "Eco model"),
     },
     {
       command: "model",
