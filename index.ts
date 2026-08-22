@@ -7,7 +7,7 @@
  *
  * Local consolidation target: replaces upstream pi-telegram + local shared
  * telegram-audio-io + telegram-new-session-bridge + telegram-image-io +
- * telegram-reboot-bridge for the XO (chief-of-staff) lane.
+ * telegram-reboot-bridge for a dedicated agent lane.
  *
  * Telegram bridge extension entrypoint and orchestration layer
  * Zones: telegram, pi agent, orchestration
@@ -520,7 +520,7 @@ export default function (pi: Pi.ExtensionAPI) {
     });
   }
 
-  // Reboot bridge: always active by operator request for XO Telegram lane.
+  // Reboot bridge: always active by operator request for the dedicated Telegram lane.
   // Any reboot-intent Telegram text/voice is handled immediately by the bridge.
   try {
     activateFoldedRebootBridge(pi);

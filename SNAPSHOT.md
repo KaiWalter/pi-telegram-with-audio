@@ -13,10 +13,10 @@ This sandbox extension is a **vendored fork** of upstream `git:github.com/llblab
 ## Intent
 
 - Local-only, owned by this nix-config tree.
-- Initial scope: assigned to XO (Chief of Staff) lane only.
-- CE / BB-8 / XA remain on upstream `pi-telegram` package.
+- Initial scope: assigned to one dedicated agent lane only.
+- Other agent lanes remain on the upstream `pi-telegram` package.
 - All local `telegram-*` capabilities (audio I/O, image I/O, new-session-bridge, reboot-bridge) are folded into this sandbox under `folded/`.
-- Reboot bridge is active for XO by explicit operator request (no confirmation blocker; immediate reboot on reboot intent).
+- Reboot bridge is active for the dedicated lane by explicit operator request (no confirmation blocker; immediate reboot on reboot intent).
 
 ## Update policy
 
