@@ -7,6 +7,7 @@
 import { unlink } from "node:fs/promises";
 import { basename, extname } from "node:path";
 
+import { sanitizeTelegramVoiceText } from "./voice-text.ts";
 import { getTelegramVoiceSynthesisProviders } from "./voice.ts";
 
 export interface TelegramVoiceReplyTurnView {
@@ -161,9 +162,11 @@ export function createTelegramVoiceReplySender<THandler = unknown>(
       replyMarkup?: unknown;
     },
   ): Promise<void> {
+    const speechText = sanitizeTelegramVoiceText(text);
+
     for (const handler of ports.findVoiceHandlers?.(deps.getHandlers?.()) ?? []) {
       try {
-        const filePath = await ports.generateVoiceFile?.(text, {
+        const filePath = await ports.generateVoiceFile?.(speechText, {
           lang: options?.lang,
           rate: options?.rate,
           handler,
@@ -186,7 +189,7 @@ export function createTelegramVoiceReplySender<THandler = unknown>(
 
     for (const handler of ports.getProgrammaticVoiceHandlers?.() ?? []) {
       try {
-        const filePath = await handler(text, {
+        const filePath = await handler(speechText, {
           lang: options?.lang,
           rate: options?.rate,
         });
@@ -221,7 +224,7 @@ export function createTelegramVoiceReplySender<THandler = unknown>(
           continue;
         }
 
-        const providerResult = await provider(text, {
+        const providerResult = await provider(speechText, {
           lang: options?.lang,
           rate: options?.rate,
         });

@@ -19,7 +19,7 @@ This extension is designed for the Telegram bridge setup already present in this
 - `[attachments]` includes a `base_dir` plus relative or absolute audio file paths
 - `[outputs]` may already contain transcript text from the bridge; if it does, that transcript stays authoritative
 - when no transcript is present in `[outputs]`, the extension runs `bin/transcribe-whisper` locally against the detected audio attachment
-- outbound hidden comment `telegram_voice` is converted by the bridge into playable audio for Telegram clients
+- outbound hidden comment `telegram_voice` is converted by the bridge into playable audio for Telegram clients; its text is normalized through the shared outbound speech boundary so Markdown punctuation and link destinations are never spoken
 
 ## Voice reply policy
 

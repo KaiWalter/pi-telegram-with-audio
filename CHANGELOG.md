@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `[Voice]` Added deterministic Markdown-to-speech normalization at the outbound TTS boundary for configured handlers, programmatic handlers, synthesis providers, and folded automatic voice comments. Impact: Telegram voice replies retain readable prose and link labels but never speak Markdown emphasis/control punctuation or link destinations.
+
 ## 0.13.2: Config Recovery And Inbound Output Bounds Hotfix
 
 - `[Config]` Invalid `telegram.json` now recovers on session startup by renaming the broken file to an `.invalid-*` recovery path, loading safe empty defaults, and recording a runtime diagnostic. Impact: a hand-edited or partially written config no longer bricks `/telegram-setup` or session startup.

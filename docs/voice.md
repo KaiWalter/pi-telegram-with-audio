@@ -81,7 +81,7 @@ Providers can implement `getVoicePromptContribution(view)` to inject voice-speci
 
 Import provider APIs from `@llblab/pi-telegram/voice`; see the TSDoc on `registerTelegramVoiceSynthesisProvider` and `TelegramVoiceSynthesisProviderResult` there for the exact interface.
 
-The provider receives the raw agent text plus optional `{ lang?, rate? }`.
+The provider receives deterministic plain speech text plus optional `{ lang?, rate? }`. Immediately before every outbound voice handler or synthesis-provider call, the bridge removes Markdown controls, hidden comments, fenced code, link destinations, and bare URLs while retaining readable prose, link labels, and inline-code text. This transport boundary applies equally to explicit `telegram_voice` blocks and automatic `mirror`/`always` interception, so providers never need to speak Markdown punctuation.
 
 It must return one of:
 

@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { sanitizeTelegramVoiceText } from "../../lib/voice-text.ts";
 import { execFile } from "node:child_process";
 import { access } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
@@ -355,21 +356,7 @@ function removeTelegramVoiceComment(content: unknown): unknown {
 }
 
 function makeTtsFriendly(text: string): string {
-	const cleaned = text
-		.replace(/<!--([\s\S]*?)-->/g, "")
-		.replace(/```[\s\S]*?```/g, "")
-		.replace(/`([^`]+)`/g, "$1")
-		.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
-		.replace(/^#{1,6}\s*/gm, "")
-		.replace(/^[-*+]\s+/gm, "")
-		.replace(/^\d+\.\s+/gm, "")
-		.replace(/^>\s?/gm, "")
-		.replace(/\|/g, " ")
-		.replace(/\r/g, "")
-		.replace(/\n{3,}/g, "\n\n")
-		.replace(WHITESPACE_RE, " ")
-		.trim();
-
+	const cleaned = sanitizeTelegramVoiceText(text);
 	if (!cleaned) {
 		return "";
 	}
@@ -382,18 +369,8 @@ function makeTtsFriendly(text: string): string {
 	return `${cleaned.slice(0, maxLength).trimEnd()}...`;
 }
 
-function sanitizeVoiceText(text: string): string {
-	return text
-		.replace(/<!--/g, "")
-		.replace(/-->/g, "—>")
-		.replace(/\r/g, " ")
-		.replace(/\n+/g, " ")
-		.replace(/\s{2,}/g, " ")
-		.trim();
-}
-
 function appendTelegramVoiceComment(content: unknown, voiceText: string): unknown {
-	const comment = `<!-- telegram_voice: ${sanitizeVoiceText(voiceText)} -->`;
+	const comment = `<!-- telegram_voice: ${sanitizeTelegramVoiceText(voiceText)} -->`;
 
 	if (typeof content === "string") {
 		return `${content.trimEnd()}\n\n${comment}`;

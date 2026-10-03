@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createTelegramVoiceReplySender } from "../lib/outbound-voice.ts";
+import { sanitizeTelegramVoiceText } from "../lib/voice-text.ts";
 import {
   clearTelegramVoiceSynthesisProviders,
   registerTelegramVoiceSynthesisProvider,
@@ -57,6 +58,38 @@ test("Outbound voice sender uploads provider opus result with reply markup and t
       "direct.opus",
     ],
   ]);
+});
+
+test("Voice text sanitizer removes Markdown controls and link destinations", () => {
+  assert.equal(
+    sanitizeTelegramVoiceText(
+      "# Update\n\n- **Important**: _read_ [the guide](https://example.com/guide).\n- `Keep this` and ~~that~~.\n\n```ts\nconst hidden = true;\n```\n\n<https://example.com/raw>",
+    ),
+    "Update\nImportant: read the guide.\nKeep this and that.",
+  );
+  assert.equal(sanitizeTelegramVoiceText("**Unclosed _emphasis"), "Unclosed emphasis");
+});
+
+test("Outbound voice sender normalizes Markdown before calling providers", async () => {
+  let receivedText = "";
+  registerTelegramVoiceSynthesisProvider(
+    async (text) => {
+      receivedText = text;
+      return "/tmp/normalized.opus";
+    },
+    { id: "normalization-test" },
+  );
+  const sendVoice = createTelegramVoiceReplySender({
+    execCommand: async () => ({ stdout: "", stderr: "", code: 0, killed: false }),
+    sendMultipart: async () => {},
+  });
+
+  await sendVoice(
+    { chatId: 1, replyToMessageId: 2 },
+    "**Bold** _italic_ [label](https://example.com) and `code`",
+  );
+
+  assert.equal(receivedText, "Bold italic label and code");
 });
 
 test("Outbound voice sender records and throws when every source fails", async () => {
